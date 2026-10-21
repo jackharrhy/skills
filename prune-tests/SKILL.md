@@ -5,30 +5,40 @@ description: Audit and simplify test suites by removing slop, tautologies, redun
 
 # Prune Tests
 
-Optimize for useful regression protection with the fewest maintainable tests, not test count or coverage percentage. Prefer deletion over repairing tests that do not earn their keep.
+Optimize for useful regression protection with fewer maintainable tests, not test count or coverage percentage. Ask: **What plausible bug does this test catch, and does a better test already catch it?** Prefer deletion when a test does not earn its keep.
 
-Ask: **What plausible bug does this test catch, and is that protection already provided by a better test?** Evaluate inputs and assertions, not just executed lines.
+## Judge protection in context
+
+Read candidate tests with the implementation and nearby tests. Evaluate inputs, assertions, and the path actually exercised; titles and assertion styles are only clues. A no-throw check, null check, or mock-call assertion can protect a real contract. Flag uncertain value rather than inventing grounds for deletion.
+
+Give each behavioral contract a primary owner at the cheapest production boundary that reaches its credible failure. Another layer should cover a distinct risk, such as transport or lifecycle behavior. Claimed redundancy needs a surviving test that catches the same failure, not merely executes the same code. Preserve unique regressions and distinct boundaries, especially security, persistence, protocol, and concurrency contracts.
+
+For broad reductions, work in reviewable batches with brief reasons. Do not target a deletion percentage or change production behavior to make tests pass.
 
 ## Delete or consolidate
 
-- Delete tautologies: self-comparisons, expected values recomputed by the same logic, and assertions that a mock returns its configured value.
-- Delete tests of trivial plumbing, framework defaults, or implementation details when they protect no meaningful contract.
-- Delete obsolete tests and redundant cases. Combine input/output variants only when it makes the tests simpler; preserve distinct boundaries and failure modes.
-- Delete entire files when no valuable tests remain, along with fixtures, helpers, mocks, and snapshots that are genuinely unused afterward.
+- Remove tautologies, expectations computed by the same logic under test, and assertions that mocks return their configured values. Fixtures and mocks must not fabricate the behavior asserted: persistence protection needs the actual writing path; ordering needs events produced by the owning code.
+- Remove assertions that restate static types for locally constructed values. Keep runtime validation of untrusted inputs and external formats.
+- Remove trivial forwarding, framework-default, and basic-rendering tests without a meaningful application contract. Preserve translation, policy, resource ownership, interactions, and application accessibility behavior.
+- Collapse redundant cases and table rows when they cover the same rule. Retain distinct failure modes; combine variants only when doing so simplifies the tests.
+- Replace or remove implementation-coupled assertions that break on behavior-preserving refactors. Source greps and copied inventories rarely prove behavior, but static checks can protect independent byte, path, package, or architecture contracts. Irrelevant identifier changes should not invalidate them.
 
-## Flaky tests
+When repairing or replacing a valuable test, ensure its name matches its exercised behavior. Negative cases must reach the intended guard, not pass through unrelated rejection. For regression replacements, verify failure before the fix for the intended reason when feasible; disclose unavailable evidence. Never weaken assertions merely to get green results.
 
-Confirm intermittent outcomes from available failures or repeated runs; a single failure or suspicious sleep is not proof of flakiness. Distinguish test instability from a real product race or defect.
+## Timing and instability
 
-Prefer deleting confirmed flaky tests whose protection is low-value or already covered. Do not keep them alive with retries, longer sleeps, or permanent skips. If one uniquely protects an important contract or known regression, keep it and flag the issue, or make a small deterministic repair within scope.
+Distinguish incidental wall-clock thresholds from deliberate timing contracts. Preserve deterministic clock tests, race regressions, and meaningful performance, compiler, or dependency-upgrade guards under suitable conditions.
 
-## Keep useful tests
+Confirm flakiness from failure evidence or repeated runs; one failure or a suspicious sleep is insufficient. Order-dependent failures may expose leaked state from earlier tests: reproduce the original shard or order when relevant. A baseline failure can still be a product bug.
 
-- Preserve meaningful behavior checks, important boundary cases, and relevant production regressions unless equivalent protection remains or the behavior is obsolete.
-- Prefer public outputs and observable effects over internal call choreography. Use real values and mock only necessary boundaries.
-- Judge assertions by their contract: a no-throw smoke test or a null check can be meaningful. Do not delete from syntax alone.
-- When a test's value is genuinely unclear after inspection, flag it rather than inventing a reason to delete it. Never change production behavior or weaken assertions just to make tests pass.
+Delete confirmed flaky tests when protection is low-value or duplicated. For unique important protection, make a small deterministic repair within scope or retain and flag it. Retries, longer sleeps, and permanent skips are not repairs.
 
-## Verify
+## Clean up and verify
 
-Run affected tests, then the remaining suite when practical. Report deletions and consolidations with brief reasons, any meaningful protection lost, and actual validation results.
+Remove empty files and suites, unused fixtures, helpers, hooks, snapshots, and dependencies. Check affected test lists, scripts, documentation links, and CI configuration. Remove obsolete test-only exports, flags, wrappers, or injection seams only after checking production callers, public API obligations, and side effects; useful dependency injection is not itself a problem.
+
+Run surviving affected tests and relevant type, lint, or unused-code checks; broaden to the remaining suite as practical. After large browser-test reductions, check whether survivors relied on removed files to trigger shared setup or dependency pre-bundling.
+
+Before calling failures pre-existing, compare against the unchanged base under the same conditions. Measure claimed speedups with matching commands and environments, distinguishing elapsed suite time from summed file durations. A green suite after deletion does not establish equivalent protection.
+
+Report what was removed or consolidated and why, the surviving tests supporting redundancy claims, any meaningful protection lost, and actual validation results.
